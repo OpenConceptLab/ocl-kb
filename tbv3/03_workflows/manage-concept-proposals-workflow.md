@@ -33,11 +33,12 @@ Covers the full lifecycle of a concept proposal — from a community member iden
 2. From search results: "No results for [term]" → "Propose this concept to CIEL" CTA
    - Or: from CIEL source page → "Propose New Concept" button
 3. Proposal form opens (see `02_capabilities/manage-concept-proposals.md` for form spec)
-4. User fills in:
-   - Concept Class, Datatype (from CIEL's configured dropdowns)
-   - At least one name (Fully Specified in their locale)
-   - Optional: additional names, descriptions, supporting mappings (e.g., SAME-AS SNOMED)
-   - Optional: reason/justification
+4. User fills in any combination of:
+   - Reason/narrative (strongly encouraged; practical minimum for a useful proposal)
+   - Concept Class, Datatype (from CIEL's configured dropdowns) — optional
+   - Names (Fully Specified or synonyms) — optional
+   - Descriptions, supporting mappings (e.g., SAME-AS SNOMED) — optional
+   - All structured fields are optional; a proposal may range from a brief narrative to a fully specified concept definition
 5. User submits → proposal status: **Submitted**
 6. User receives confirmation + link to their proposal
 7. Notification sent to CIEL admins

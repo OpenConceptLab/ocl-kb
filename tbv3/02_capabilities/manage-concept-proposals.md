@@ -22,9 +22,10 @@ Submitting concept proposals (for non-source-owners), and reviewing/managing tho
 
 ### New Concept Proposal Form
 
-Identical to the concept creation form (`02_capabilities/author-concept.md`) with these differences:
+Modeled after the concept creation form (`02_capabilities/author-concept.md`) with these differences:
 - The form header reads "Propose New Concept to [Source Name]"
-- A **Reason** field is added (textarea; optional but strongly encouraged — prompt text: "Describe why this concept is needed and how it will be used")
+- **All structured concept fields are optional** (class, datatype, names, descriptions, mappings) — a proposal may be purely narrative or fully specified; the system does not enforce a minimum
+- A **Reason / Narrative** field is present (textarea; optional but strongly encouraged — prompt text: "Describe why this concept is needed and how it will be used"); this is the practical minimum for a useful proposal
 - A **Mappings** section is available but labeled "Supporting Mappings (informational)" — these are not created automatically; the admin decides during review
 - Concept ID may be left blank ("Assign automatically" option) - appears only if source admins enable manual ID generation i.e. no ID auto-assignment
 - Submit button: "Submit Proposal" (not "Save Concept")

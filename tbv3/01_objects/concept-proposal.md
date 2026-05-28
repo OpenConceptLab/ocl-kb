@@ -7,6 +7,8 @@ A Concept Proposal is a formal request to add or modify a concept in a source th
 > **Architectural constraint:** Proposals must be stored in **separate database tables and a separate index** from the main concept/mapping store. They must not be included in the main concept search index. This sandboxing is required so that a high volume of proposals does not slow down or pollute production search.
 >
 > **Patch model for edit proposals:** Edit concept proposals store only the fields that differ from the existing concept (analogous to HTTP PATCH). The full concept is not re-submitted — only the delta. This makes proposals lightweight and makes the diff review straightforward.
+>
+> **Open design question — container (2026-05-28):** Should proposals be scoped to a **source** (as currently modeled) or to an **owner/namespace**? Namespace-level would allow high-level or ambiguous proposals that don't naturally belong to one source, with the namespace manager triaging and routing them. Source-level is simpler and matches how issues work in GitHub. Not yet resolved — confirm with Jonathan and Andy before implementation.
 
 "?" represents optional (non-required) attributes
 
@@ -87,7 +89,8 @@ Submitted / In Review  →  Withdrawn  (by proposer)
 - The proposer does not need edit access to the source
 
 ### New Concept Proposals
-- The proposer specifies concept class, datatype, and at least one name
+- All structured concept fields (class, datatype, names, descriptions, mappings) are **optional** — a proposal may be as minimal as a narrative description or as complete as a fully specified concept definition
+- At least a rationale or name is expected in practice, but the system does not enforce a minimum beyond the proposal type itself
 - The concept ID may be left blank; the source admin assigns it during review
 - The proposer may include mappings (e.g., SAME-AS SNOMED) as supporting evidence — these are informational until approved
 
