@@ -457,6 +457,14 @@
       </p>
     </div>
 
+    <div class="callout">
+      <strong>Implementation note:</strong>
+      Technically, the HEAD-link is a property of the collection's <strong>auto-expansion</strong>, not just the
+      collection-to-source relationship. The auto-expansion for collection HEAD is configured to resolve references
+      against source HEAD. This matters at release time: when the collection is published, the auto-expansion must
+      be re-evaluated (not copied) so references transition from HEAD to the newly released source version.
+    </div>
+
     <h3>Design decisions at a glance</h3>
 
     <table>
@@ -471,12 +479,12 @@
         <tr>
           <td>Where is the flag configured?</td>
           <td><span class="pill">Collection level</span> per source relationship</td>
-          <td>The collection controls how it resolves; the source doesn't know or care.</td>
+          <td>The collection configures which source to HEAD-link to. Whether it is permitted depends on whether the collection's owner has been granted HEAD access by the source. Resolution is always consistent regardless of which individual user triggers it — it is the collection's owner that is authorized, not the user.</td>
         </tr>
         <tr>
           <td>Authorization basis</td>
-          <td><span class="pill">Permission</span> to access HEAD of the source</td>
-          <td>Resolution must be consistent across all users of the same collection. Namespace is the most common way permission is granted, but it is not the gate — users with HEAD access to a source in another org can use the HEAD-link. The URL registry handles cross-org canonical URL resolution.</td>
+          <td><span class="pill">Source-level owner authorization</span></td>
+          <td>The source controls which owners (orgs or users) may access its HEAD — its own owner by default, or explicitly granted to specific external owners. A collection may use HEAD-link only if its owner is in that authorized list. Cross-owner grants are an exception case that implies a working relationship: the external owner's collections will always depend on the source owner to cut a release before their collection can be published.</td>
         </tr>
         <tr>
           <td>Does the reference text change?</td>
@@ -506,9 +514,19 @@
 
     <div class="card">
       <p>
-        The user adds new content to their source and collection simultaneously. The HEAD-link ensures that
-        new source content is immediately visible in the collection without requiring a release cycle.
+        The user authors in the collection; when new content is needed (e.g., a new answer concept), it is
+        created in the linked source as part of that collection authoring action. The HEAD-link ensures the
+        new source content is immediately visible in the collection without a release cycle.
       </p>
+    </div>
+
+    <div class="callout warn">
+      <strong>Important:</strong>
+      Edits to the source do not flow automatically to the collection. Only content explicitly <em>referenced</em>
+      by the collection is visible — unreferenced source HEAD content has no effect. The linked source is the
+      <em>destination</em> for new concepts; the collection is the <em>driver</em> of what gets created there.
+      A single source can be HEAD-linked from multiple collections simultaneously (e.g., PIH might have both a
+      main dictionary collection and a Vaccinations collection, both HEAD-linked to the same PIH source).
     </div>
 
     <div class="diagram"><span class="hl-yellow">AUTHORING PHASE — working in HEAD of both source and collection</span>
@@ -536,8 +554,8 @@
 
     <h3>What the user experiences</h3>
     <ol class="steps">
-      <li>User creates a new concept in PIH Source → concept lands in PIH Source HEAD.</li>
-      <li>System adds a reference to the collection HEAD (or user adds it manually).</li>
+      <li>While managing the collection, user adds new content (e.g., adds an answer to a question) → concept is created in PIH Source HEAD.</li>
+      <li>A reference to the new concept is added to the collection HEAD simultaneously.</li>
       <li>Auto-expansion resolves the reference against PIH Source HEAD via the HEAD-link.</li>
       <li>User navigates to the collection → sees the new concept <strong>immediately</strong>.</li>
       <li>Repeat for each new concept — no release required to see the work.</li>
@@ -564,11 +582,23 @@
     <h2>Releasing — batch release of source then collection</h2>
 
     <div class="card">
-      <p>When the user is ready to publish, two things must happen in order:</p>
-      <ol style="padding-left:20px; margin-top:8px; font-size:0.92rem; color:var(--gray-600);">
-        <li style="margin-bottom:4px;"><strong>Release the source</strong> — unpublished HEAD content must be versioned first.</li>
-        <li><strong>Release the collection</strong> — the HEAD-link switches from HEAD to the newly released source version.</li>
-      </ol>
+      <p>When the user is ready to publish, OCL first checks whether a source release is actually needed:</p>
+      <ul style="padding-left:20px; margin-top:8px; font-size:0.92rem; color:var(--gray-600);">
+        <li style="margin-bottom:8px;"><strong>No unreleased content referenced</strong> — all content referenced by the collection is already in the latest released source version. The collection publishes immediately, locking to that released version. No source release needed.</li>
+        <li><strong>Unreleased content referenced</strong> — the source must be released first. Two steps in order:
+          <ol style="padding-left:18px; margin-top:6px;">
+            <li style="margin-bottom:4px;"><strong>Release the source</strong> — unpublished HEAD content must be versioned first.</li>
+            <li><strong>Release the collection</strong> — the HEAD-link switches from HEAD to the newly released source version.</li>
+          </ol>
+        </li>
+      </ul>
+    </div>
+
+    <div class="callout warn">
+      <strong>Why not auto-release the source?</strong>
+      OCL warns and asks the user to release the source manually rather than doing it automatically. A source's
+      HEAD may contain work-in-progress content unrelated to this collection — auto-releasing would publish it all.
+      Releasing a source may also trigger QA pipelines and validation steps that need to complete first.
     </div>
 
     <div class="diagram"><span class="hl-yellow">RELEASE PHASE — batch release of source then collection</span>
@@ -605,12 +635,21 @@
     <h3>Happy path steps</h3>
     <ol class="steps">
       <li>User decides to publish a new version of the dictionary.</li>
-      <li>System checks whether the HEAD-linked source has any unreleased content referenced by the collection.</li>
-      <li>If yes: user is prompted to release PIH Source first (see warning below).</li>
-      <li>User releases PIH Source (e.g., as v19.3).</li>
+      <li>System checks: does the collection reference any PIH Source content that exists only in HEAD (not in the latest released version)?</li>
+      <li><strong>If no unreleased content referenced:</strong> collection is published immediately; references lock to the latest released PIH Source version. Done.</li>
+      <li><strong>If unreleased content is referenced:</strong> user is prompted to release PIH Source first (see warning below).</li>
+      <li>User releases PIH Source (e.g., as v19.3) — a deliberate manual step, not automatic.</li>
       <li>User releases the collection — system re-evaluates references and locks to PIH Source v19.3.</li>
       <li>Collection version is published. All references resolve cleanly.</li>
     </ol>
+
+    <div class="callout green" style="margin-top:16px;">
+      <strong>UX goal:</strong>
+      The release experience should feel like one action from the user's perspective. If the workflow forces
+      users to navigate away to release a source, run QA, and return before releasing the collection, most
+      users will abandon it and revert to source-only authoring. The design should guide the user through
+      source release as an inline dependency step, not a separate context switch.
+    </div>
 
     <div class="notes-zone">
       <div class="notes-label">Notes</div>
@@ -631,6 +670,12 @@
         surfaces a warning — not a hard block. The user can proceed, but references pointing to unreleased
         source content will return no result in the published collection version.
       </p>
+      <h3 style="margin-top:16px; font-size:0.9rem;">Implementation considerations</h3>
+      <ul style="margin-top:6px;">
+        <li>Detecting which HEAD content is referenced by the collection requires diffing source HEAD against its latest release and checking collection references against that diff — may have performance implications at scale.</li>
+        <li>Source HEAD may contain changes the user did not intend to publish alongside this collection. The user should remain in control of when a source version is cut.</li>
+        <li>The check should be scoped to content actually referenced by the collection, not all HEAD changes in the source.</li>
+      </ul>
     </div>
 
     <div class="callout warn">
@@ -707,11 +752,19 @@
         </tr>
         <tr>
           <td><span class="pill green">Exists</span></td>
-          <td>Namespace-based URL registry for multi-org resolution</td>
+          <td>API can already represent a collection expansion locked to HEAD and one locked to a released version via expansion parameters — the content model for HEAD-link is in place today for same-owner scenarios</td>
+        </tr>
+        <tr>
+          <td><span class="pill green">Exists</span></td>
+          <td>Owner-based URL registry for multi-org resolution</td>
         </tr>
         <tr>
           <td><span class="pill warn">Needs build</span></td>
-          <td>UI to configure a source relationship as HEAD-linked (collection settings)</td>
+          <td>UI to configure a source relationship as HEAD-linked (collection settings), gated on the collection's owner being in the source's authorized owner list</td>
+        </tr>
+        <tr>
+          <td><span class="pill warn">Needs build</span></td>
+          <td>Owner-level HEAD access control: today HEAD is accessible to anyone with repo access; future permissions work must introduce owner-to-owner authorization so the source can grant HEAD access to specific external owners (no OCL precedent for this type of access control yet; cross-owner gap means collection and source must share the same owner for now)</td>
         </tr>
         <tr>
           <td><span class="pill warn">Needs build</span></td>
@@ -765,10 +818,42 @@
         <tr>
           <td><s>Multi-org namespaces</s> <span class="pill green">Resolved</span></td>
           <td>
-            Authorization is permission-based, not namespace-based — a user with HEAD access to a source in
-            another org (e.g., MSF OCB) can HEAD-link it from their collection. The URL registry already
-            handles cross-org canonical URL resolution. Namespace is the common case, not the gate.
-            (Decided 2026-05-13 squad call.)
+            Authorization is owner-based at the source level — the source grants HEAD access to its own owner
+            by default and can explicitly grant access to specific external owners (orgs or users). A collection's
+            owner must be in the source's authorized list; individual user access is not the gate. Cross-owner
+            grants are an exception case, not an open/public model, and carry an implied commitment: the external
+            owner's collections will always depend on the source owner to release before they can publish.
+            The URL registry handles cross-org URL resolution. (Further clarified 2026-05-29.)
+          </td>
+        </tr>
+        <tr>
+          <td>Source release scope</td>
+          <td>
+            When a collection's HEAD-link requires a source release before publishing, the source HEAD may contain
+            work-in-progress content the user did not intend to release alongside this collection (other concepts
+            still under review, QA steps not yet run, etc.). Options: (a) warn and require manual source release —
+            current design, safest; (b) auto-release the source before the collection — risky, captures unintended
+            changes; (c) partial/cherry-pick release — technically hard, no current UI. The smart-check (publish
+            against the latest released version when possible) reduces how often a source release is actually needed.
+          </td>
+        </tr>
+        <tr>
+          <td>Owner-level access control</td>
+          <td>
+            OCL currently has no mechanism to grant HEAD access to a specific external owner (org or user). Today
+            HEAD is accessible to anyone with repo access; versionless references point to latest rather than HEAD,
+            but HEAD itself is still reachable. Future permissions work must introduce owner-to-owner authorization.
+            Until then, cross-owner HEAD-link requires the collection and source to share the same owner.
+          </td>
+        </tr>
+        <tr>
+          <td>Concept modifications</td>
+          <td>
+            If a collection references a source concept and adds local modifications (e.g., PIH adds a local display
+            name or answer set to a CL concept), how those modifications interact with the HEAD-link and the release
+            transition has not been determined. The reference expansion structure is designed to accommodate this,
+            but it has not been fully designed as part of this workflow. Needs to be addressed as part of broader
+            collection management work.
           </td>
         </tr>
       </tbody>
