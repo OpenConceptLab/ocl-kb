@@ -107,7 +107,63 @@ Deferred because: the use case requires more design work around how users discov
 
 ---
 
+## Dependency Notifications
+
+### Per-Dependency Notification Preferences
+**Origin:** M44 scoping pass, 2026-06-12 (cut from ocl_issues#2348)
+
+Allow users to configure, per dependency (or globally), which events trigger notifications (new version, deprecation, deletion, nested collection update), which channels are used (in-app, email, webhook), and at what frequency (immediate, daily digest, weekly summary). v3 M44 ships with smart defaults only (in-app + optional email, immediate) and no per-dependency configuration UI.
+
+**When to revisit:** If users report notification fatigue or request digest/quiet-hours behavior once the M44 notification flow is in production.
+
+---
+
+### Notification History / Export
+**Origin:** M44 scoping pass, 2026-06-12 (cut from ocl_issues#2348)
+
+A searchable, filterable history of all dependency-change notifications a user has received, including what action was taken (updated, dismissed, snoozed), with export. M44 ships the Notification Center (current unread/read list) but not a long-term searchable history or export.
+
+---
+
+### Downstream Notification to Dependent Collection Owners (Reverse-Dependency Graph)
+**Origin:** M44 scoping pass, 2026-06-12 (cut from ocl_issues#2348 and #2349)
+
+When a collection accepts an update and publishes a new version, owners of *other* collections that nest or depend on this collection are not notified in M44. This requires a reverse-dependency graph (collections depending on collections, not just on sources) which is not part of the M44 dependency graph (source → collection only).
+
+**When to revisit:** Once the source → collection dependency graph from M44 is in production and nested-collection dependency tracking is prioritized.
+
+---
+
 ## Version Locking / Update Collection
+
+### Rollback After Accepting a Dependency Update
+**Origin:** M44 scoping pass, 2026-06-12 (cut from ocl_issues#2349)
+
+After accepting an update and publishing a new collection version, provide a one-click rollback to the prior collection state (dependency version + expansion) if the update causes problems downstream. This depends on ocl_issues#2284 (Restore/Revert Collection HEAD to Previous Version), which is itself deferred and not an M44 blocker.
+
+M44's safety net is the existing version history: the prior released collection version remains accessible and unchanged, so a manual revert is possible but not a guided one-click workflow.
+
+**When to revisit:** When #2284 is scheduled.
+
+---
+
+### Scheduled / Batch Dependency Updates
+**Origin:** M44 scoping pass, 2026-06-12 (cut from ocl_issues#2349)
+
+Two related capabilities, both deferred:
+- **Scheduled updates:** let a user schedule "Accept Update" for a future date/time, with automatic pre-test and auto-rollback if the test fails.
+- **Batch updates:** when multiple dependencies have pending updates, review and apply them together with a combined impact assessment, rather than one at a time.
+
+M44 handles each pending source update as its own review-and-accept flow (with version-skipping supported within a single source's update chain).
+
+---
+
+### Update History / Audit Log
+**Origin:** M44 scoping pass, 2026-06-12 (cut from ocl_issues#2349)
+
+A dedicated, exportable audit log of all dependency updates applied to a collection: date/time, who applied it, before → after versions, impact assessment, and whether it was later rolled back. M44 relies on the collection's existing version history as the implicit record; no separate update-specific audit log is built.
+
+---
 
 ### Facilitated Per-Concept Accept/Reject in the Update Collection Workflow
 **Origin:** Joe + Jon design discussion, 2026-04-16
