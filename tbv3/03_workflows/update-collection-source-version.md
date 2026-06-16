@@ -26,7 +26,7 @@ This is the primary workflow deliverable for Milestone 44 ("CIEL Implementers �
 
 | Showcase step | M44? | Notes |
 |---|---|---|
-| Receive in-app notification when CIEL releases a new version | ✅ M44 | #2348 — notification bell + notification center + collection banner |
+| Surface dependency staleness when visiting a collection | ✅ M44 | #2348 — collection header banner (Phase 1); notification bell + center deferred to Part 2 |
 | Review what changed (added/retired/modified concepts, browsable diff) | ✅ M44 | #2349 — version comparison view |
 | Test new version without committing (Create Similar Expansion) | ✅ M44 | "Create Similar" on the HEAD auto-expansion with new CIEL version pinned; #2501 — in-progress indicator while expansion builds |
 | View impact on the collection (before/after expansion comparison) | ✅ M44 | Expansion comparison; #2493 — expansion selector on Concepts/Mappings tabs |
@@ -60,19 +60,23 @@ This is the primary workflow deliverable for Milestone 44 ("CIEL Implementers �
 
 ## Trigger
 
-**Notification:** When CIEL releases a new version, TBv3 sends an in-app notification (and optionally email) to owners of collections that reference CIEL.
+**Phase 1 (M44) — Collection header banner:** When the user visits a collection, TBv3 runs a version synchrony check. If any of the collection's resolved source dependencies have a newer released version available, a banner appears at the top of the collection page.
 
-Notification content:
-- "[CIEL] released a new version: v2025-01-15"
-- "Your collection [name] references CIEL. Review what changed and update your collection."
+Banner content:
+- "⚠️ [CIEL] released a new version: v2025-01-15. [N] of your references may be affected."
 - [Review Updates →] CTA button
+
+**Phase 2 (post-M44):** Proactive in-app notification (bell + notification center) and email notification when a dependency releases a new version. Design TBD.
 
 ---
 
 ## Steps
 
-### 1. Review the Notification
+### 1. Review the Staleness Banner
 
+**Phase 1 (M44):** The entry point is the collection header banner — the user visits their collection and sees the staleness warning directly on the page. Clicks "Review Updates →" to enter the version comparison flow (Step 2).
+
+**Phase 2 (post-M44):** Proactive in-app notification will be added as an additional entry point:
 1. User sees notification bell badge in the app header
 2. Opens notification center
 3. Sees the CIEL new version notification

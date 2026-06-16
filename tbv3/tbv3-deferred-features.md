@@ -134,6 +134,32 @@ When a collection accepts an update and publishes a new version, owners of *othe
 
 ---
 
+### Proactive Dependency Change Notifications (In-App Bell + Notification Center)
+**Origin:** 2026-06-16 squad discussion, cut from ocl_issues#2348 Part 2
+
+When a source dependency releases a new version, proactively alert collection owners without requiring them to visit the collection first. Intended surfaces:
+- **Notification bell (header):** badge count on unread dependency change notifications
+- **Notification Center:** list of pending dependency updates, newest first; each item shows source chip, new version ID, change summary, and "Review updates →" CTA; mark-as-read and dismiss actions
+
+M44 ships only the collection header banner (visit-triggered, on-demand). Proactive notification requires detecting a source release event and fanning the alert to all affected collection owners — that infrastructure is not built in M44.
+
+**When to revisit:** After the M44 collection banner is in production and users report needing proactive alerts rather than visit-triggered discovery.
+
+---
+
+### Dependency Notification Delivery Channels + Events Framework Integration
+**Origin:** 2026-06-16 squad discussion, cut from ocl_issues#2348 Part 2
+
+Two related design decisions deferred from M44:
+
+**Delivery channels:** Once proactive notifications are built (see above), extend them beyond in-app to external channels — email (via ocl.org; carries domain reputation risk if messages are marked as spam), browser push notifications (effective even when the app is closed), WhatsApp, Slack. Each channel requires opt-in and per-channel user settings.
+
+**Events framework integration / repo-level following:** The preferred backing mechanism for proactive notifications is OCL's existing events framework extended with repo-level following — a collection automatically subscribes to the sources it depends on (distinct from a user explicitly following a source). This means all org members with edit access to a collection see the notification, not just whoever manually followed the source. Jonathan and Sunny agreed that events (resource-scoped history) and notifications (user-facing delivery connected to events) are separate entities, and a proper notification layer should sit on top of the events framework rather than be wired directly to it. The events data model supports this, but the API endpoints for repo-level following are not yet exposed and events are not currently updating reliably — both are prerequisites.
+
+**When to revisit:** After the proactive notification bell + center (above) are designed and events framework reliability is confirmed.
+
+---
+
 ## Version Locking / Update Collection
 
 ### Rollback After Accepting a Dependency Update

@@ -122,35 +122,49 @@ On submit: expansion created; shown as "Processing" while being evaluated. On co
 
 _Maps to SOW Tracker #62 (dependency change notification) and #63 (review and accept upstream updates)._
 
-### Detection: How TBv3 Knows a Dependency Changed
+### Detection: How TBv3 Determines Dependency Staleness
 
-A collection has a dependency on a source when it contains one or more references whose expressions resolve to concepts in that source. TBv3 tracks this relationship as a **dependency graph** maintained server-side.
+A collection has a dependency on a source when it contains one or more references whose expressions resolve to concepts in that source.
 
-When a source releases a new version, the platform:
-1. Identifies all collections whose HEAD references resolve to that source
-2. Compares the new source version's content against the version currently resolved by those collections
-3. Generates a dependency change event for each affected collection
+**Phase 1 (M44) — on-demand synchrony check:** When a user visits a collection, TBv3 runs a function that compares the source versions currently resolved by the collection's expansion against the latest released versions of those sources. If any dependency has a newer release available, the function returns a change summary for each stale dependency. No persistent dependency graph or event records are required — this is a synchronous check against version metadata.
 
-The comparison produces a change summary:
-- **Added concepts**: concepts in the new version not present in the previous
+The change summary includes:
+- **Added concepts**: concepts in the new version not present in the version the collection is resolved to
 - **Retired/removed concepts**: concepts that have become inactive or were deleted
 - **Modified concepts**: concepts whose names, properties, or mappings changed
 - **Affected references**: count of references in the collection that point to changed concepts and mappings
 
-This event is what triggers the notification. No notification is generated if the new source version contains no changes that affect the collection's resolved references.
+No staleness signal is returned if the collection is already resolved to the latest version of all its dependencies, or if a newer version exists but contains no changes affecting the collection's references.
 
-### What Triggers a Notification
-- A source repository that a collection references has released a new version
-- The released version contains at least one change affecting concepts referenced by the collection
-- Notifications are sent to the **owner** of the collection (and optionally to org members with edit access)
+**Phase 2 (post-M44) — proactive notification infrastructure:** Proactively push staleness information to users when a new source version is released. Design TBD — likely uses the events framework with repo-level following (a collection automatically follows sources it depends on, distinct from a user explicitly following a source). Tracked separately after Part 1 ships.
 
-### Notification Content
-- Which source released a new version (source chip with name and org)
+### What Triggers the Staleness Banner (Phase 1)
+- The user visits a collection
+- At least one of the collection's resolved source dependencies has a newer released version available
+- The newer version contains at least one change affecting concepts referenced by the collection
+
+### Staleness Content
+- Which source has a newer version (source chip with name and org)
 - The new version ID and release date
 - A summary of what changed: "[N] added, [N] retired, [N] modified concepts affect your collection"
 - A direct link: "Review updates →" (launches the Update Collection workflow — see `03_workflows/update-collection-source-version.md`)
 
-### Where Notifications Appear
+### Where Staleness Is Surfaced
+
+**Phase 1 (M44):**
+
+**Collection header banner**
+- When a user navigates to a collection that has at least one dependency with a newer version available, a persistent yellow banner appears at the top of the collection page:
+  > ⚠️ **[Source Name]** released a new version. [N] of your references may be affected. [Review updates →]
+- Banner is dismissible per session ("Snooze"); reappears on next visit until the update workflow is completed or dismissed permanently by the owner
+
+**"Needs Refresh" badge on expansions**
+- Expansions whose resolved source versions are behind the latest available releases are marked **Needs Refresh**
+- Needs Refresh indicator: a yellow dot + "Needs Refresh" badge next to the expansion in the Versions + Expansions tab
+- Tooltip: "This expansion was built before [Source] released [versionID]. Rebuild to pick up changes."
+- Rebuilding the expansion clears the Needs Refresh indicator
+
+**Phase 2 (post-M44):**
 
 **In-app notification bell (header)**
 - Badge count on unread notifications
@@ -159,19 +173,9 @@ This event is what triggers the notification. No notification is generated if th
 **Notification Center**
 - List of all notifications for the user, newest first
 - Each item shows: source chip, message, timestamp, "Review updates →" CTA
-- Actions: Mark as read, Dismiss (hides from list but does not start the workflow)
-- Notification persists as unread until the user either dismisses it or completes the update workflow
+- Actions: Mark as read, Dismiss
 
-**Collection header banner**
-- When a user navigates to a collection that has an unreviewed dependency update, a persistent yellow banner appears at the top of the collection page:
-  > ⚠️ **[Source Name]** released a new version. [N] of your references may be affected. [Review updates →]
-- Banner is dismissible per session ("Snooze"); reappears on next visit until the update workflow is completed or dismissed permanently by the owner
-
-**Email notification** (if enabled in user settings)
-- Subject: "[Source Name] released a new version — review updates to [Collection Name]"
-- Body: same content as in-app notification plus a direct link
-
-### Notification List Item Format
+**Notification list item format:**
 ```
 [Source chip: CIEL / OpenConceptLab]
 "CIEL released v2024-11-01 on Nov 1, 2024"
@@ -179,11 +183,9 @@ This event is what triggers the notification. No notification is generated if th
 [Review updates →]                          2 hours ago
 ```
 
-### Needs Refresh Indicator on Expansions
-- Expansions that were built before the dependency change occurred are marked **Needs Refresh**
-- Needs Refresh indicator: a yellow dot + "Needs Refresh" badge next to the expansion in the Versions + Expansions tab
-- Tooltip: "This expansion was built before [Source] released [versionID]. Rebuild to pick up changes."
-- Rebuilding the expansion clears the Needs Refresh indicator
+**Email notification** (if enabled in user settings; note: sending from ocl.org carries domain reputation risk if messages are marked as spam — design volume carefully)
+- Subject: "[Source Name] released a new version — review updates to [Collection Name]"
+- Body: same content as in-app notification plus a direct link
 
 ---
 
