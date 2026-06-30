@@ -120,6 +120,128 @@ This came up in the 2026-06-29 standup and is the key architectural issue to res
 
 ---
 
+## Reference Definitions vs. Expansion Parameters — Visual Examples
+
+This is the piece that caused confusion in the 2026-06-30 deep dive (Andy's questions about "why would it go to versionless?"). There are **three separate mechanisms** that interact, and it's easy to conflate them. These examples walk through each in isolation, then show how they combine.
+
+### The three mechanisms
+
+| Mechanism | Where it lives | What it controls | Does it change on rebuild? |
+|---|---|---|---|
+| **A — Versionless reference** | Stored per-reference, on the collection | "Give me Concept X from Source S" — no version stated | Yes — re-evaluates to that source's latest at the moment of each fresh expansion build |
+| **B — Explicit-version reference** | Stored per-reference, on the collection | "Give me Concept X from Source S, version V" — version is pinned in the reference itself | No — never changes automatically. Only changes if a person edits/transforms that specific reference |
+| **C — Expansion parameter** | Stored per-expansion (not per-reference) | Overrides how *all* versionless references to a given **source** resolve, for that one expansion build | Yes — can be changed independently on each rebuild, without touching any reference definitions |
+
+The key insight from the transcript: **A and B are properties of individual references. C operates at the whole-source level and is invisible to the user unless they go into expansion settings.** This is why Sunny flagged that "accept the CIEL update but not the SNOMED update" can't be done by editing references — both sources' references might be versionless (mechanism A), so the only lever is mechanism C.
+
+---
+
+### Example 1 — Versionless reference: "sticky" lock within an expansion
+
+A versionless reference resolves to whatever is latest **at the moment an expansion is built**, then that resolved version stays fixed for that expansion — it does not silently drift forward when the source releases something newer.
+
+```mermaid
+sequenceDiagram
+    participant Ref as Reference Definition<br/>"CIEL Concept X" (no version stated)
+    participant Exp1 as Expansion #1 (built Jan)
+    participant CIEL as CIEL Source
+    participant Exp2 as Expansion #2 (rebuilt Jul)
+
+    Note over CIEL: CIEL latest = v2025-01
+    Ref->>Exp1: Evaluate reference
+    Exp1->>CIEL: "what's latest?"
+    CIEL-->>Exp1: v2025-01
+    Note over Exp1: Resolved + LOCKED to v2025-01<br/>for the life of Expansion #1
+
+    Note over CIEL: CIEL releases v2025-06
+    Note over Exp1: Expansion #1 still shows v2025-01<br/>— no silent drift
+
+    Note over Ref: User explicitly triggers Rebuild / Create Similar
+    Ref->>Exp2: Evaluate reference (fresh build)
+    Exp2->>CIEL: "what's latest?"
+    CIEL-->>Exp2: v2025-06
+    Note over Exp2: Resolved + LOCKED to v2025-06<br/>for the life of Expansion #2
+```
+
+**Takeaway:** the reference definition itself never says "v2025-01" or "v2025-06" — it just says "latest, evaluated once per expansion build." The version only changes when you build a *new* expansion.
+
+---
+
+### Example 2 — Explicit-version reference: pinned regardless of rebuilds
+
+```mermaid
+sequenceDiagram
+    participant Ref as Reference Definition<br/>"CIEL Concept Y @ v2025-01" (explicit)
+    participant Exp1 as Expansion #1
+    participant CIEL as CIEL Source
+    participant Exp2 as Expansion #2 (rebuilt)
+
+    Ref->>Exp1: Evaluate reference
+    Exp1->>CIEL: "give me v2025-01 specifically"
+    CIEL-->>Exp1: v2025-01
+
+    Note over CIEL: CIEL releases v2025-06
+
+    Ref->>Exp2: Evaluate reference (rebuild)
+    Exp2->>CIEL: "give me v2025-01 specifically"
+    CIEL-->>Exp2: v2025-01
+    Note over Exp2: Still v2025-01.<br/>Rebuilding does NOT move this reference.<br/>Only editing/transforming the reference itself would.
+```
+
+**Takeaway:** this is the escape hatch a user reaches for when they deliberately don't want a specific concept to follow future source updates (Andy's "form isn't ready to handle the retired concept" scenario).
+
+---
+
+### Example 3 — Expansion parameters: per-source override, not per-reference
+
+This is the scenario from the standup: a collection references **both CIEL and SNOMED**, both have versionless references, both sources just released new versions, and the user wants to accept CIEL's update but **not** SNOMED's.
+
+```mermaid
+flowchart LR
+    subgraph RefDefs ["Reference Definitions — unchanged, all versionless"]
+        R1["CIEL Concept A"]
+        R2["CIEL Concept B"]
+        R3["SNOMED Concept C"]
+        R4["SNOMED Concept D"]
+    end
+
+    subgraph Params ["Expansion Parameters — set per rebuild"]
+        P1["CIEL → resolve to LATEST"]
+        P2["SNOMED → pin to v2024-09<br/>(do not advance)"]
+    end
+
+    subgraph Result ["Resulting Expansion"]
+        E1["Concept A @ v2025-06 — updated"]
+        E2["Concept B @ v2025-06 — updated"]
+        E3["Concept C @ v2024-09 — unchanged"]
+        E4["Concept D @ v2024-09 — unchanged"]
+    end
+
+    R1 --> P1 --> E1
+    R2 --> P1 --> E2
+    R3 --> P2 --> E3
+    R4 --> P2 --> E4
+```
+
+**Takeaway:** none of the four reference definitions changed. The split outcome is achieved entirely through the expansion parameters — a setting most users have never touched directly. This is the gap Sunny flagged: **today this flexibility exists in the API, but the M44 workflow doesn't yet expose a guided UI for it.**
+
+---
+
+### Tying it back to the M44 workflow
+
+Joe's MSF + CIEL example from the standup maps directly onto Example 3:
+- Both MSF's and CIEL's references in the collection are versionless.
+- CIEL releases a new version → its own staleness banner.
+- MSF has not released anything new → no banner for MSF.
+- "Accept Update" on the CIEL banner should, under the hood, set an expansion parameter that advances *only* CIEL to latest, leaving MSF's resolved version exactly where it was.
+- The user never sees or edits "expansion parameters" — the workflow has to translate "I accept the CIEL update" into the correct parameter change for them.
+
+This confirms the **per-source banner design** (one banner per outdated source, not one banner for the whole collection) is the right mental model, and it clarifies what "Accept Update" actually has to do behind the scenes: it's an expansion-parameter change scoped to one source, not a reference edit.
+
+It also confirms the limit Andy was probing: **there is no per-concept selection inside this mechanism.** If a user wants some CIEL concepts to update and others to stay behind, the only paths are (a) pre-emptively convert the ones they want frozen into explicit-version references (Example 2) before accepting the update, or (b) accept the whole-source update and then manually remove unwanted new content afterward via the References tab. This matches the spec's existing design note that "accept all and rebuild" is the happy path, with granular editing as a separate power-user activity.
+
+---
+
 ## MVP Scoping Questions
 
 These are the open questions to answer in the deep dive:
