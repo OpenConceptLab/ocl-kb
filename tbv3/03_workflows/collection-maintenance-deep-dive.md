@@ -73,9 +73,9 @@ flowchart TD
     F -->|Clicks 'Review Updates →'| H
 
     subgraph STEP2 ["STEP 2 — What Changed in CIEL?"]
-        H["Source Version Comparison View\nLeft: current locked CIEL version\nRight: new CIEL version\n⬡ NOT YET BUILT"]
+        H["Source Version Comparison View\nLeft: current locked CIEL version\nRight: new CIEL version\n✅ BUILT"]
         H --> I["Summary stats:\n+N concepts added  |  -N retired  |  ~N modified\n⬡ NOT YET BUILT"]
-        I --> J["Browsable diff list\n(Added / Retired / Modified rows)\n⬡ NOT YET BUILT"]
+        I --> J["Browsable diff list\n(Added / Retired / Modified rows)\n✅ BUILT"]
     end
 
     J --> K{"Want to preview impact\non YOUR collection first?"}
@@ -84,9 +84,9 @@ flowchart TD
     K -->|"No — ready to decide"| N
 
     subgraph STEP3 ["STEP 3 — Test Without Committing"]
-        L["'Create Similar' expansion\npinned to new CIEL version\nruns alongside current expansion\n⬡ NOT YET BUILT (depends on #2493, #2501)"]
-        L --> M["⏳ Expansion builds asynchronously\n#2501 In-progress indicator ⬡ In Progress"]
-        M --> M2["Expansion Selector on Concepts/Mappings tabs:\nSwitch between current and test expansion\n#2493 ⬡ In Progress"]
+        L["'Create Similar' expansion\npinned to new CIEL version\nruns alongside current expansion\n🟡 MOSTLY BUILT — minor UI tweak needed"]
+        L --> M["⏳ Expansion builds asynchronously\n#2501 In-progress indicator ✅ BUILT"]
+        M --> M2["Expansion Selector on Concepts/Mappings tabs:\nSwitch between current and test expansion\n#2493 ✅ BUILT"]
         M2 --> M3["User browses their collection content\nunder the new CIEL version"]
     end
 
@@ -130,18 +130,20 @@ flowchart TD
 | -- | -------------------------------------------------------------------------------------- | -------------------------- | --------- | ---------- |
 | 1  | Staleness banner on collection header                                                  | ✅ Done                    | #2348     | ✅ Yes     |
 | 2  | "Review Updates →" CTA that enters the update flow                                    | ✅ Done                    | #2348     | ✅ Yes     |
-| 3  | **Source version comparison view** (side-by-side: current CIEL vs. new CIEL)     | ⬡ Not built               | #2349     | 🔴 Discuss |
+| 3  | **Source version comparison view** (side-by-side: current CIEL vs. new CIEL)     | ✅ Done (2026-06-30 update) | #2349     | 🔴 Discuss |
 | 4  | **Summary stats**: concepts added / retired / modified between two CIEL versions | ⬡ Not built               | #2349     | 🔴 Discuss |
-| 5  | **Browsable diff list**: rows of added / retired / modified concepts             | ? Built but not optimized? | #2349     | 🔴 Discuss |
-| 6  | "Create Similar" expansion pinned to new source version                                | ⬡ Not built               | #2349     | 🔴 Discuss |
-| 7  | In-progress indicator while expansion is building                                      | ⬡ In Progress             | #2501     | ✅ Yes     |
-| 8  | Expansion selector on Concepts/Mappings tabs                                           | ⬡ In Progress             | #2493     | ✅ Yes     |
+| 5  | **Browsable diff list**: rows of added / retired / modified concepts             | ✅ Done (2026-06-30 update) | #2349     | 🔴 Discuss |
+| 6  | "Create Similar" expansion pinned to new source version                                | 🟡 Mostly built — minor UI tweak (2026-06-30 update) | #2349     | 🔴 Discuss |
+| 7  | In-progress indicator while expansion is building                                      | ✅ Done (2026-06-30 update) | #2501     | ✅ Yes     |
+| 8  | Expansion selector on Concepts/Mappings tabs                                           | ✅ Done (2026-06-30 update) | #2493     | ✅ Yes     |
 | 9  | **"Accept Update" action** → triggers auto-expansion rebuild                    | ⬡ Not built               | #2349     | ✅ Yes     |
 | 10 | **Post-rebuild diff** (pre vs. post expansion comparison)                        | ⬡ Not built               | #2349     | 🔴 Discuss |
 | 11 | **Confirm / Reject rebuild** UI + revert logic                                   | ⬡ Not built               | #2349     | ✅ Yes     |
 | 12 | Create new collection version                                                          | ✅ Existing                | —        | ✅ Yes     |
 
-Legend: ✅ Done or confirmed in scope | ⬡ Not yet built | 🔴 Needs scoping discussion
+Legend: ✅ Done or confirmed in scope | 🟡 Mostly built — minor work remaining | ⬡ Not yet built | 🔴 Needs scoping discussion
+
+> **Note (2026-06-30):** Reqs #3, #5, #6, #7, #8 are now built or mostly built. For these rows, the remaining 🔴 Discuss flag is purely a **workflow/UX inclusion question** (should the guided M44 flow surface this piece?), not an engineering-cost question — the build cost is largely sunk. This changes the calculus in [MVP Scoping Questions](#mvp-scoping-questions) and the [Minimum Viable Showcase Story](#minimum-viable-showcase-story-candidate---proposed-by-claude) below, both of which were originally written assuming these were unbuilt.
 
 ---
 
@@ -359,15 +361,18 @@ These are the open questions to answer in the deep dive:
 - **#2433 ✅** CTA / Reference / Transform
 - **#2282 ✅** Clean up collection references with cascade options
 - **#2576 ✅** TBv3 Sources: Versions tab
+- **✅** Source version comparison view (current CIEL vs. new CIEL, side-by-side)
+- **✅** Browsable diff list (Added / Retired / Modified rows)
+- **#2501 ✅** Expansion in-progress indicator while building/rebuilding *(confirmed built 2026-06-30 — GitHub ticket may still show open for tracking purposes)*
+- **#2493 ✅** Expansion selector on Concept/Mapping list in Collections *(confirmed built 2026-06-30 — GitHub ticket may still show open for tracking purposes)*
 
-**Currently in progress:**
+**Mostly built:**
 
-- **#2493** Expansion selector on Concept/Mapping list in Collections (Sunny — PR raised)
-- **#2501** Expansion in-progress indicator (open)
+- **🟡** "Create Similar" expansion pinned to new source version — needs a minor UI tweak
 
 **Open / not yet started:**
 
-- **#2349** Core update workflow (Sunny — assigned)
+- **#2349** Core update workflow (Sunny — assigned) — primarily the orchestration/rebuild/confirm pieces (Reqs #4, #9–11) remain
 - **#2346** Real-time schema validation warnings for references (Sunny — open)
 - **#2496** Reference details: show resolution context
 - **#2280** Automated migration script for resource version reference transformation (Jon + Joe)
@@ -396,13 +401,13 @@ The M44 milestone showcase story (from the milestone description) currently is:
 > 4. User sees post-rebuild summary (N added, N retired) and confirms (Reqs #10–11)
 > 5. User creates a new collection version (✅ existing)
 
-**What this cuts:**
+**What this cuts (updated 2026-06-30 — see note on Reqs Inventory above):** the rationale below was written assuming Reqs #5, #6, #8 were unbuilt and expensive to add. They are now confirmed built or mostly built, so the "defer to save engineering cost" reasoning no longer applies — these would be cut (if at all) purely as a UX/workflow scoping choice, not a cost-saving one. Worth revisiting whether to cut them at all now that they're close to free to include.
 
-- Browsable diff list with per-concept rows (Req #5) — defer; show counts only
-- "Create Similar" test expansion preview (Req #6) — defer; too expensive for MVP
-- Expansion selector comparison (Req #8) — still ships as its own feature (#2493), but decoupled from this workflow decision
+- Browsable diff list with per-concept rows (Req #5) — ~~defer; show counts only~~ **already built**; question is whether to surface it in the guided MVP flow
+- "Create Similar" test expansion preview (Req #6) — ~~defer; too expensive for MVP~~ **mostly built**, needs a minor UI tweak; question is whether to surface it in the guided MVP flow
+- Expansion selector comparison (Req #8) — **built** (#2493); still ships as its own feature, decoupled from this workflow decision
 
 This gives a working end-to-end flow with significantly less new development. The user can still make an informed decision based on counts and the banner, and confirm after seeing the rebuild summary.
 
-> **Is this reduced story acceptable for the M44 showcase?**
+> **Is this reduced story acceptable for the M44 showcase — and given #5/#6/#8 are now built/mostly built, should they be added back in rather than cut?**
 
