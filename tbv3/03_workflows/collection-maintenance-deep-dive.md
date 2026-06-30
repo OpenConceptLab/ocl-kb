@@ -190,6 +190,14 @@ This came up in the 2026-06-29 standup and is the key architectural issue to res
 
 > Flavor A is ruled out. Is Flavor C (unpersisted, source-scoped expansion) viable and sufficient for MVP, or do we fall back to Flavor B (full persisted "Create Similar" expansion diff) while Flavor C gets designed out?
 
+### Open Questions — Flavor C feasibility (2026-06-30)
+
+These are unresolved and need follow-up before Flavor C can be scoped:
+
+- **Full copy vs. changed-subset only?** Should an unpersisted expansion copy the **full** evaluated content (unaffected rows untouched + reevaluated changed rows), or return **only the changed subset** and let the client reconcile it against the existing expansion? This is cost-dependent — we should avoid getting locked into the expensive full-copy approach for large collections. MSF-scale collections run ~16–17k references / ~5–8k concepts; a full-copy approach at that scale may not be meaningfully cheaper than just building a real expansion.
+- **No defined performance threshold yet.** There's no agreed definition of "fast enough" for an unpersisted preview. Per Sunny: *"we'll probably have to come up with the definition of 'long time' at some point."* Until that's defined, we can't tell whether Flavor C is actually solving the cost problem or just moving it.
+- **Cascading evaluation gotcha (Jonathan):** if a reference points to another value set/collection (a nested reference), an expansion-parameter change may need to **cascade into that child** reference's own evaluation. This isn't addressed by anything designed so far — Examples 1–3 above all assume a flat reference-to-concept relationship, not a reference-to-collection chain.
+
 ---
 
 ## Reference Definitions vs. Expansion Parameters — Visual Examples
@@ -344,6 +352,7 @@ These are the open questions to answer in the deep dive:
 | User adds a concept from a new CIEL version while still locked to the old version                        | Warn that the concept can't appear in the current expansion; lock will shift on rebuild         | ⬡ Needs implementation check (Joe flagged in standup) |
 | Multiple sources have pending updates simultaneously                                                     | Handle as separate flows; user can batch into one new collection version at the end             | ✅ In spec, not yet built                              |
 | User wants to exclude specific new concepts before rebuilding                                            | Exit to References tab, make changes, then trigger rebuild — not a guided per-concept workflow | ✅ Defined as out-of-scope for guided flow             |
+| Reference points to another value set/collection (nested reference) — does an expansion-parameter change need to cascade into the child? | **Not yet addressed** (Jonathan, 2026-06-30) — see [Open Questions — Flavor C feasibility](#open-questions--flavor-c-feasibility-2026-06-30) | ❌ Not resolved |
 | Retired concept governance (OpenMRS impact)                                                              | **Open question** — input needed from Andy Kanter (governance) + Burke (OpenMRS)         | ❌ Not resolved                                        |
 
 ---
