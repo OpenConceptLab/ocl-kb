@@ -27,18 +27,15 @@ These were settled (or explicitly narrowed) in today's session. Where earlier dr
 
 ## Background: Adding content from a version
 
-1. Added versionless reference (i.e. without version to the repo) - resolves to expansion's locked (evaluated) source version
-2. Added versioned reference (e.g. x concept from January CIEL) - resolves to reference's explicit version (which may differ from locked version)
-   3. If your collection only contains only these versioned references, then it will always compute to that version, not the expansion's locked version.
-   4. One aspect of collection maintenance might be to transform versioned references to a later CIEL version (currently supported). This is separate from
-3. 
+There are three ways content can resolve to a specific source version inside a collection:
 
-Edge case:
+1. **Versionless reference** (no version specified) — resolves to the expansion's locked/evaluated source version.
+2. **Versioned reference** (e.g., "Concept X from January CIEL") — resolves to the reference's own explicit version, which may differ from the expansion's locked version.
+   - If a collection contains *only* versioned references, it will always compute against those pinned versions — never the expansion's locked version.
+   - Transforming a versioned reference to point at a later CIEL version is currently supported, but that's a separate workflow from the one described here (see Decision 1 — scope boundary).
+3. **Expansion-parameter override** — a versionless reference resolved against a specific source version set at the expansion level, not the reference level. See mechanism C in [Reference Definitions vs. Expansion Parameters](#reference-definitions-vs-expansion-parameters--visual-examples) below.
 
-* Create new expansion, and have multiple sources with different versions
-* Go through CIEL update workflow to go from January to May CIEL
-* For LOINC repo, there is a later version but we aren't updating it. Keep the same locked version (no update done at all).
-  * Can update this LOINC version later - does not need to be bundled in with the CIEL update workflow
+**Edge case:** a collection has multiple sources, each at a different version. Going through the CIEL update workflow (January → May) shouldn't force an update to LOINC's locked version too — LOINC can stay where it is and be updated later, independently, without bundling it into the CIEL update.
 
 **Three phases (Decision 3 above):**
 
@@ -46,14 +43,12 @@ Edge case:
 2. **How / What** — decide what to update
 3. **Review / Confirm** — update to that source version
 
-Hidden complexity: Help the user pick the right expansion parameter without getting them into
+**Open design questions:**
 
-* Consider: Help the user identify if there are versioned references in their collection?
-* 
+- **Hidden complexity:** how do we help the user pick the right expansion parameter without exposing expansion-parameter configuration to them directly? The workflow has to translate "accept the CIEL update" into the correct parameter change behind the scenes — see [Tying it back to the M44 workflow](#tying-it-back-to-the-m44-workflow). Should we also surface whether the user's collection contains any versioned references, since those won't be touched by this workflow?
+- **Full complexity:** what does the complete version of this workflow look like — e.g., per-concept selection, the full linked-source test workflow? Not scoped for M44 — see Decision 4 (all-or-nothing first) and the spec's "Out of Scope for M44" list.
 
-Full complexity: ?
-
-Assumptions:
+**Assumptions:**
 
 * Versioned references are left alone and are handled in the Transform References workflow
 * This workflow only applies to versionless references.
@@ -125,7 +120,7 @@ flowchart TD
 
 ---
 
-## Simple MVP
+> 📍 **TODO:** Once the Decisions above and the Reqs Inventory below are settled, summarize the agreed "Simple MVP" here. See [Minimum Viable Showcase Story](#minimum-viable-showcase-story-candidate---proposed-by-claude) near the end of this doc for a draft starting point.
 
 ---
 
@@ -167,11 +162,9 @@ This came up in the 2026-06-29 standup and is the key architectural issue to res
 
 > **2026-06-30 decision:** this is now considered **the key missing capability** for the whole workflow (Decision 5). Per Jonathan (Decision 6), the underlying evaluation/reference-query logic should be built as a **generalized, reusable OCL capability** — not specific to this CL-update feature — and **architected separately from persistence**, so the unpersisted evaluation path and the persisted expansion path can each be optimized independently.
 
-- Copy evaluated content from other source versions so that only the in-scope source versions?
-- "Auto-expand but only to a specific source version" - Smarter logic for reference queries to reign in what is being evaluated
-  - Separate from locking, which applies during $ResolveReference
-- Query a set of references to be previewed, which will inform the user on what content is updating(?)
-- 
+- **Concept:** "Auto-expand, but scoped to only the in-scope source version(s)" — smarter reference-query logic to constrain what gets evaluated, rather than re-evaluating or copying the entire expansion.
+- This evaluation is separate from "locking," which applies during `$ResolveReference` (see Decision 2 above on how locking and expansion parameters relate).
+- Query just the specific set of references that would be affected and preview them — informing the user what content would change, without persisting a new expansion.
 
 ### Flavor B — Expansion-to-expansion diff (authoritative but expensive)
 
