@@ -13,50 +13,48 @@
 These were settled (or explicitly narrowed) in today's session. Where earlier draft language elsewhere in this doc conflicts, these decisions win — connecting notes have been added at each affected spot.
 
 1. **Scope boundary:** This workflow assumes collections built on **versionless references with auto-expansion**. Updating **explicit-version references** is out of scope for this workflow — that's a separate problem, already handled by the Transform References workflow (#2339 / #2433 / #2282). See the Assumptions in [Background](#background-adding-content-from-a-version) below and [Example 2](#example-2--explicit-version-reference-pinned-regardless-of-rebuilds).
-
-2. **Mental model (Jonathan):** "Locking" should not be framed as a separate mechanism from expansion parameters — it **is** an expansion parameter, applied to a single reference. The sticky behavior in [Example 1](#example-1--versionless-reference-sticky-lock-within-an-expansion) is, conceptually, an expansion parameter being set the first time a versionless reference is evaluated. Open question: should this become an **explicit DB attribute** (persisted the moment it's first evaluated) rather than a value computed fresh on each evaluation? This affects how cheap Flavor C (the unpersisted preview, below) can actually be.
-
+2. **Mental model (Jonathan):** "Locking" should not be framed as a separate mechanism from expansion parameters — it **is** an expansion parameter, applied to a single expansion. The sticky behavior in [Example 1](#example-1--versionless-reference-sticky-lock-within-an-expansion) is, conceptually, an expansion parameter being set the first time a versionless reference is evaluated. Open question: should this become an **explicit DB attribute** (persisted the moment it's first evaluated) rather than a value computed fresh on each evaluation? This affects how cheap Flavor C (the unpersisted preview, below) can actually be.
 3. **Workflow has 3 phases (Sunny):**
+
    1. **Identification** — surfacing which content is outdated (diagram Steps 1–2: staleness banner, source version comparison)
    2. **How / What to update** — deciding which source(s), and via what mechanism, to bring up to date (diagram Steps 3–4: preview, decide)
    3. **Review / Confirm** — reviewing the result and committing (diagram Steps 5–7: rebuild, post-rebuild diff, publish)
-
 4. **Build order — all-or-nothing first:** The backend will be built **all-or-nothing per source** first (accept the whole CIEL update, or don't). Selective accept/reject per concept is acknowledged as the **likely real-world primary path** users will actually want, but it is explicitly **deferred to a later UI layer**, not part of the initial build. This is a sequencing decision, not a permanent cut — see the connecting note in [Tying it back to the M44 workflow](#tying-it-back-to-the-m44-workflow).
-
-5. **"Unpersisted/preview expansion" is the key missing capability.** This is what Flavor C is reaching for: a way to **evaluate** (not persist) just the affected references and show a diff/preview, instead of generating a full, expensive expansion every time. This is now the primary technical unknown blocking M44 scoping — see [Two Flavors of "Diff"](#two-flavors-of-diff--critical-design-question).
-
+5. **"Unpersisted/preview expansion" is the key missing capability.** This is what Flavor C is reaching for: a way to **evaluate** (not persist) just the affected references and show a diff/preview, instead of generating a full, expensive expansion every time. This is now the primary technical unknown blocking M44 scoping — see [Two Flavors of &#34;Diff&#34;](#two-flavors-of-diff--critical-design-question).
 6. **Evaluation logic should be generalized, not feature-specific (Jonathan):** The reference-query/filter logic needed for preview/diff should be built as a **reusable capability across OCL**, not buried inside this one collection-maintenance feature. Evaluation should be **architected separately from persistence**, so the unpersisted evaluation path and the persisted expansion path can each be optimized independently. This is an architectural constraint on how Flavor C gets built, not just a UI decision.
 
 ---
 
 ## Background: Adding content from a version
+
 1. Added versionless reference (i.e. without version to the repo) - resolves to expansion's locked (evaluated) source version
 2. Added versioned reference (e.g. x concept from January CIEL) - resolves to reference's explicit version (which may differ from locked version)
-    3. If your collection only contains only these versioned references, then it will always compute to that version, not the expansion's locked version.
-    4. One aspect of collection maintenance might be to transform versioned references to a later CIEL version (currently supported). This is separate from 
-4. 
+   3. If your collection only contains only these versioned references, then it will always compute to that version, not the expansion's locked version.
+   4. One aspect of collection maintenance might be to transform versioned references to a later CIEL version (currently supported). This is separate from
+3. 
 
 Edge case:
+
 * Create new expansion, and have multiple sources with different versions
 * Go through CIEL update workflow to go from January to May CIEL
 * For LOINC repo, there is a later version but we aren't updating it. Keep the same locked version (no update done at all).
-    * Can update this LOINC version later - does not need to be bundled in with the CIEL update workflow
-
+  * Can update this LOINC version later - does not need to be bundled in with the CIEL update workflow
 
 **Three phases (Decision 3 above):**
+
 1. **Identification** — see what content is updated
 2. **How / What** — decide what to update
 3. **Review / Confirm** — update to that source version
 
+Hidden complexity: Help the user pick the right expansion parameter without getting them into
 
-Hidden complexity: Help the user pick the right expansion parameter without getting them into 
 * Consider: Help the user identify if there are versioned references in their collection?
 * 
 
 Full complexity: ?
 
-
 Assumptions:
+
 * Versioned references are left alone and are handled in the Transform References workflow
 * This workflow only applies to versionless references.
 * Expansion parameters are the primary mechanism that are being leveraged here.
@@ -64,6 +62,7 @@ Assumptions:
 > See [Reference Definitions vs. Expansion Parameters — Visual Examples](#reference-definitions-vs-expansion-parameters--visual-examples) below for worked diagrams of these three mechanisms (versionless references, versioned references, expansion parameters) — it formalizes the assumptions above with sequence diagrams.
 
 ---
+
 ## End-to-End Workflow Diagram
 
 ```mermaid
@@ -125,9 +124,11 @@ flowchart TD
 ```
 
 ---
+
 ## Simple MVP
 
 ---
+
 ## Potential Reqs Inventory
 
 | #  | Requirement / Capability                                                              | Status                     | Ticket(s) | MVP?       |
@@ -168,10 +169,9 @@ This came up in the 2026-06-29 standup and is the key architectural issue to res
 
 - Copy evaluated content from other source versions so that only the in-scope source versions?
 - "Auto-expand but only to a specific source version" - Smarter logic for reference queries to reign in what is being evaluated
-    - Separate from locking, which applies during $ResolveReference
+  - Separate from locking, which applies during $ResolveReference
 - Query a set of references to be previewed, which will inform the user on what content is updating(?)
 - 
-
 
 ### Flavor B — Expansion-to-expansion diff (authoritative but expensive)
 
@@ -206,11 +206,11 @@ This is the piece that caused confusion in the 2026-06-30 deep dive (Andy's ques
 
 ### The three mechanisms
 
-| Mechanism | Where it lives | What it controls | Does it change on rebuild? |
-|---|---|---|---|
-| **A — Versionless reference** | Stored per-reference, on the collection | "Give me Concept X from Source S" — no version stated | Yes — re-evaluates to that source's latest at the moment of each fresh expansion build |
-| **B — Explicit-version reference** | Stored per-reference, on the collection | "Give me Concept X from Source S, version V" — version is pinned in the reference itself | No — never changes automatically. Only changes if a person edits/transforms that specific reference |
-| **C — Expansion parameter** | Stored per-expansion (not per-reference) | Overrides how *all* versionless references to a given **source** resolve, for that one expansion build | Yes — can be changed independently on each rebuild, without touching any reference definitions |
+| Mechanism                                 | Where it lives                           | What it controls                                                                                              | Does it change on rebuild?                                                                           |
+| ----------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **A — Versionless reference**      | Stored per-reference, on the collection  | "Give me Concept X from Source S" — no version stated                                                        | Yes — re-evaluates to that source's latest at the moment of each fresh expansion build              |
+| **B — Explicit-version reference** | Stored per-reference, on the collection  | "Give me Concept X from Source S, version V" — version is pinned in the reference itself                     | No — never changes automatically. Only changes if a person edits/transforms that specific reference |
+| **C — Expansion parameter**        | Stored per-expansion (not per-reference) | Overrides how*all* versionless references to a given **source** resolve, for that one expansion build | Yes — can be changed independently on each rebuild, without touching any reference definitions      |
 
 The key insight from the transcript: **A and B are properties of individual references. C operates at the whole-source level and is invisible to the user unless they go into expansion settings.** This is why Sunny flagged that "accept the CIEL update but not the SNOMED update" can't be done by editing references — both sources' references might be versionless (mechanism A), so the only lever is mechanism C.
 
@@ -312,6 +312,7 @@ flowchart LR
 ### Tying it back to the M44 workflow
 
 Joe's MSF + CIEL example from the standup maps directly onto Example 3:
+
 - Both MSF's and CIEL's references in the collection are versionless.
 - CIEL releases a new version → its own staleness banner.
 - MSF has not released anything new → no banner for MSF.
@@ -332,28 +333,28 @@ It also confirms the limit Andy was probing: **there is no per-concept selection
 
 These are the open questions to answer in the deep dive:
 
-| #  | Question                                                                                                                                                | Options                                                                                                                                      |
-| -- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Q1 | Is the**source version comparison view** (Req#3–5, Step 2) required for MVP, or can the user go straight from banner → rebuild?                 | A) Required — user needs to see what changed before deciding  B) Optional — defer, show only a count in the banner                         |
-| Q2 | Is the**"Create Similar" expansion preview** (Req#6, Step 3) required for MVP, or can users decide based on an unpersisted preview alone?                      | A) Required — need full-fidelity preview before committing  B) Defer — too expensive for MVP; an unpersisted preview (Flavor C, if feasible — see Decision 5) is enough             |
-| Q3 | Is the**post-rebuild diff** (Req#10, Step 5) required for MVP, or is a simple "Rebuild succeeded / N changes" message enough?                     | A) Full browsable diff required  B) Summary stats only (N added, N retired) is enough  C) Defer — just show rebuild succeeded               |
-| Q4 | How do we handle the**retired concepts** open question? When CIEL retires a concept in the user's collection, what is the right default behavior? | A) Leave the concept in the collection (tagged Retired) — governance default  B) Warn and suggest removing or pinning — implementer safety |
-| Q5 | Is**multi-source handling** (multiple pending updates: CIEL + LOINC) in scope for MVP, or do we ship a single-source flow first?                  | A) Multi-source required from day 1  B) Ship single-source MVP, address multiple in follow-on                                                |
+| #  | Question                                                                                                                                                | Options                                                                                                                                                                    |
+| -- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q1 | Is the**source version comparison view** (Req#3–5, Step 2) required for MVP, or can the user go straight from banner → rebuild?                 | A) Required — user needs to see what changed before deciding  B) Optional — defer, show only a count in the banner                                                       |
+| Q2 | Is the**"Create Similar" expansion preview** (Req#6, Step 3) required for MVP, or can users decide based on an unpersisted preview alone?               | A) Required — need full-fidelity preview before committing  B) Defer — too expensive for MVP; an unpersisted preview (Flavor C, if feasible — see Decision 5) is enough |
+| Q3 | Is the**post-rebuild diff** (Req#10, Step 5) required for MVP, or is a simple "Rebuild succeeded / N changes" message enough?                     | A) Full browsable diff required  B) Summary stats only (N added, N retired) is enough  C) Defer — just show rebuild succeeded                                             |
+| Q4 | How do we handle the**retired concepts** open question? When CIEL retires a concept in the user's collection, what is the right default behavior? | A) Leave the concept in the collection (tagged Retired) — governance default  B) Warn and suggest removing or pinning — implementer safety                               |
+| Q5 | Is**multi-source handling** (multiple pending updates: CIEL + LOINC) in scope for MVP, or do we ship a single-source flow first?                  | A) Multi-source required from day 1  B) Ship single-source MVP, address multiple in follow-on                                                                              |
 
 ---
 
 ## Edge Cases to Address
 
-| Edge Case                                                                                                | Current Plan                                                                                    | Resolved?                                              |
-| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| CIEL has released multiple new versions since the user's last update (e.g., user is on v1, latest is v4) | Support version skipping: user can jump directly to v4 without stepping through v2, v3          | ✅ In spec                                             |
-| Expansion rebuild fails                                                                                  | Show error + Retry button; does **not** roll back reference changes                      | ✅ In spec                                             |
-| No relevant content changes (new CIEL version has no overlap with user's collection)                     | Show informational notice; user may still update their locked source version                    | ✅ In spec                                             |
-| User adds a concept from a new CIEL version while still locked to the old version                        | Warn that the concept can't appear in the current expansion; lock will shift on rebuild         | ⬡ Needs implementation check (Joe flagged in standup) |
-| Multiple sources have pending updates simultaneously                                                     | Handle as separate flows; user can batch into one new collection version at the end             | ✅ In spec, not yet built                              |
-| User wants to exclude specific new concepts before rebuilding                                            | Exit to References tab, make changes, then trigger rebuild — not a guided per-concept workflow | ✅ Defined as out-of-scope for guided flow             |
-| Reference points to another value set/collection (nested reference) — does an expansion-parameter change need to cascade into the child? | **Not yet addressed** (Jonathan, 2026-06-30) — see [Open Questions — Flavor C feasibility](#open-questions--flavor-c-feasibility-2026-06-30) | ❌ Not resolved |
-| Retired concept governance (OpenMRS impact)                                                              | **Open question** — input needed from Andy Kanter (governance) + Burke (OpenMRS)         | ❌ Not resolved                                        |
+| Edge Case                                                                                                                                 | Current Plan                                                                                                                                        | Resolved?                                              |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| CIEL has released multiple new versions since the user's last update (e.g., user is on v1, latest is v4)                                  | Support version skipping: user can jump directly to v4 without stepping through v2, v3                                                              | ✅ In spec                                             |
+| Expansion rebuild fails                                                                                                                   | Show error + Retry button; does**not** roll back reference changes                                                                            | ✅ In spec                                             |
+| No relevant content changes (new CIEL version has no overlap with user's collection)                                                      | Show informational notice; user may still update their locked source version                                                                        | ✅ In spec                                             |
+| User adds a concept from a new CIEL version while still locked to the old version                                                         | Warn that the concept can't appear in the current expansion; lock will shift on rebuild                                                             | ⬡ Needs implementation check (Joe flagged in standup) |
+| Multiple sources have pending updates simultaneously                                                                                      | Handle as separate flows; user can batch into one new collection version at the end                                                                 | ✅ In spec, not yet built                              |
+| User wants to exclude specific new concepts before rebuilding                                                                             | Exit to References tab, make changes, then trigger rebuild — not a guided per-concept workflow                                                     | ✅ Defined as out-of-scope for guided flow             |
+| Reference points to another value set/collection (nested reference) — does an expansion-parameter change need to cascade into the child? | **Not yet addressed** (Jonathan, 2026-06-30) — see [Open Questions — Flavor C feasibility](#open-questions--flavor-c-feasibility-2026-06-30) | ❌ Not resolved                                        |
+| Retired concept governance (OpenMRS impact)                                                                                               | **Open question** — input needed from Andy Kanter (governance) + Burke (OpenMRS)                                                             | ❌ Not resolved                                        |
 
 ---
 
