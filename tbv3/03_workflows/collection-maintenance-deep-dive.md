@@ -8,6 +8,27 @@
 
 ---
 
+## Decisions — 2026-06-30 Deep Dive
+
+These were settled (or explicitly narrowed) in today's session. Where earlier draft language elsewhere in this doc conflicts, these decisions win — connecting notes have been added at each affected spot.
+
+1. **Scope boundary:** This workflow assumes collections built on **versionless references with auto-expansion**. Updating **explicit-version references** is out of scope for this workflow — that's a separate problem, already handled by the Transform References workflow (#2339 / #2433 / #2282). See the Assumptions in [Background](#background-adding-content-from-a-version) below and [Example 2](#example-2--explicit-version-reference-pinned-regardless-of-rebuilds).
+
+2. **Mental model (Jonathan):** "Locking" should not be framed as a separate mechanism from expansion parameters — it **is** an expansion parameter, applied to a single reference. The sticky behavior in [Example 1](#example-1--versionless-reference-sticky-lock-within-an-expansion) is, conceptually, an expansion parameter being set the first time a versionless reference is evaluated. Open question: should this become an **explicit DB attribute** (persisted the moment it's first evaluated) rather than a value computed fresh on each evaluation? This affects how cheap Flavor C (the unpersisted preview, below) can actually be.
+
+3. **Workflow has 3 phases (Sunny):**
+   1. **Identification** — surfacing which content is outdated (diagram Steps 1–2: staleness banner, source version comparison)
+   2. **How / What to update** — deciding which source(s), and via what mechanism, to bring up to date (diagram Steps 3–4: preview, decide)
+   3. **Review / Confirm** — reviewing the result and committing (diagram Steps 5–7: rebuild, post-rebuild diff, publish)
+
+4. **Build order — all-or-nothing first:** The backend will be built **all-or-nothing per source** first (accept the whole CIEL update, or don't). Selective accept/reject per concept is acknowledged as the **likely real-world primary path** users will actually want, but it is explicitly **deferred to a later UI layer**, not part of the initial build. This is a sequencing decision, not a permanent cut — see the connecting note in [Tying it back to the M44 workflow](#tying-it-back-to-the-m44-workflow).
+
+5. **"Unpersisted/preview expansion" is the key missing capability.** This is what Flavor C is reaching for: a way to **evaluate** (not persist) just the affected references and show a diff/preview, instead of generating a full, expensive expansion every time. This is now the primary technical unknown blocking M44 scoping — see [Two Flavors of "Diff"](#two-flavors-of-diff--critical-design-question).
+
+6. **Evaluation logic should be generalized, not feature-specific (Jonathan):** The reference-query/filter logic needed for preview/diff should be built as a **reusable capability across OCL**, not buried inside this one collection-maintenance feature. Evaluation should be **architected separately from persistence**, so the unpersisted evaluation path and the persisted expansion path can each be optimized independently. This is an architectural constraint on how Flavor C gets built, not just a UI decision.
+
+---
+
 ## Background: Adding content from a version
 1. Added versionless reference (i.e. without version to the repo) - resolves to expansion's locked (evaluated) source version
 2. Added versioned reference (e.g. x concept from January CIEL) - resolves to reference's explicit version (which may differ from locked version)
@@ -22,9 +43,10 @@ Edge case:
     * Can update this LOINC version later - does not need to be bundled in with the CIEL update workflow
 
 
-1. See what content is updated
-2. Decide what to update
-3. Update to that source version
+**Three phases (Decision 3 above):**
+1. **Identification** — see what content is updated
+2. **How / What** — decide what to update
+3. **Review / Confirm** — update to that source version
 
 
 Hidden complexity: Help the user pick the right expansion parameter without getting them into 
@@ -141,6 +163,9 @@ This came up in the 2026-06-29 standup and is the key architectural issue to res
 - **Decision:** Do not pursue this. This is only a UI fix - it doesn't do anything in the API, which limits CLI or other non-UI work.
 
 ### Flavor C — Unpersisted Expansion (not authoritative, performant, FHIR-supported)
+
+> **2026-06-30 decision:** this is now considered **the key missing capability** for the whole workflow (Decision 5). Per Jonathan (Decision 6), the underlying evaluation/reference-query logic should be built as a **generalized, reusable OCL capability** — not specific to this CL-update feature — and **architected separately from persistence**, so the unpersisted evaluation path and the persisted expansion path can each be optimized independently.
+
 - Copy evaluated content from other source versions so that only the in-scope source versions?
 - "Auto-expand but only to a specific source version" - Smarter logic for reference queries to reign in what is being evaluated
     - Separate from locking, which applies during $ResolveReference
@@ -180,6 +205,8 @@ This is the piece that caused confusion in the 2026-06-30 deep dive (Andy's ques
 | **C — Expansion parameter** | Stored per-expansion (not per-reference) | Overrides how *all* versionless references to a given **source** resolve, for that one expansion build | Yes — can be changed independently on each rebuild, without touching any reference definitions |
 
 The key insight from the transcript: **A and B are properties of individual references. C operates at the whole-source level and is invisible to the user unless they go into expansion settings.** This is why Sunny flagged that "accept the CIEL update but not the SNOMED update" can't be done by editing references — both sources' references might be versionless (mechanism A), so the only lever is mechanism C.
+
+> **Update from 2026-06-30 deep dive (Decision 2 — Jonathan):** "Locking" (the sticky behavior shown in Example 1) shouldn't be thought of as a fourth, separate mechanism — it **is** mechanism C, applied automatically to a single reference the first time it's evaluated. Whether that lock should become an **explicit DB attribute** (persisted at evaluation time) rather than a value computed fresh on each read is still open. This matters for Flavor C below: if locking has to persist *something*, an "unpersisted" preview still isn't entirely free.
 
 ---
 
@@ -287,6 +314,8 @@ This confirms the **per-source banner design** (one banner per outdated source, 
 
 It also confirms the limit Andy was probing: **there is no per-concept selection inside this mechanism.** If a user wants some CIEL concepts to update and others to stay behind, the only paths are (a) pre-emptively convert the ones they want frozen into explicit-version references (Example 2) before accepting the update, or (b) accept the whole-source update and then manually remove unwanted new content afterward via the References tab. This matches the spec's existing design note that "accept all and rebuild" is the happy path, with granular editing as a separate power-user activity.
 
+**2026-06-30 decision (Decision 4):** the team agrees selective per-concept accept/reject is probably what most users actually want long-term — but the backend will be built **all-or-nothing per source first**, with selective UI layered on afterward. This is a build-order decision, not a permanent cut: it applies independently of the existing governance blocker on `tbv3-deferred-features.md`'s "Facilitated Per-Concept Accept/Reject" — even once governance input lands, the all-or-nothing backend ships first regardless.
+
 **Connection to Flavor C (see Two Flavors of Diff above):** Example 3's "set an expansion parameter per source" is exactly the mechanism Flavor C is trying to exploit, minus persistence — instead of creating a real Expansion #2 record, Flavor C would evaluate "what would this collection look like if CIEL's expansion parameter were bumped to latest" on the fly, without writing it. If that turns out to be cheap enough, it could replace the "Create Similar" step in Step 3 of the main workflow entirely. Worth designing these two pieces together rather than in isolation.
 
 ---
@@ -298,7 +327,7 @@ These are the open questions to answer in the deep dive:
 | #  | Question                                                                                                                                                | Options                                                                                                                                      |
 | -- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | Q1 | Is the**source version comparison view** (Req#3–5, Step 2) required for MVP, or can the user go straight from banner → rebuild?                 | A) Required — user needs to see what changed before deciding  B) Optional — defer, show only a count in the banner                         |
-| Q2 | Is the**"Create Similar" expansion preview** (Req#6, Step 3) required for MVP, or can users decide based on the source diff alone?                      | A) Required — need full-fidelity preview before committing  B) Defer — too expensive for MVP; source diff (Flavor A) is enough             |
+| Q2 | Is the**"Create Similar" expansion preview** (Req#6, Step 3) required for MVP, or can users decide based on an unpersisted preview alone?                      | A) Required — need full-fidelity preview before committing  B) Defer — too expensive for MVP; an unpersisted preview (Flavor C, if feasible — see Decision 5) is enough             |
 | Q3 | Is the**post-rebuild diff** (Req#10, Step 5) required for MVP, or is a simple "Rebuild succeeded / N changes" message enough?                     | A) Full browsable diff required  B) Summary stats only (N added, N retired) is enough  C) Defer — just show rebuild succeeded               |
 | Q4 | How do we handle the**retired concepts** open question? When CIEL retires a concept in the user's collection, what is the right default behavior? | A) Leave the concept in the collection (tagged Retired) — governance default  B) Warn and suggest removing or pinning — implementer safety |
 | Q5 | Is**multi-source handling** (multiple pending updates: CIEL + LOINC) in scope for MVP, or do we ship a single-source flow first?                  | A) Multi-source required from day 1  B) Ship single-source MVP, address multiple in follow-on                                                |
