@@ -39,6 +39,8 @@ Assumptions:
 * This workflow only applies to versionless references.
 * Expansion parameters are the primary mechanism that are being leveraged here.
 
+> See [Reference Definitions vs. Expansion Parameters — Visual Examples](#reference-definitions-vs-expansion-parameters--visual-examples) below for worked diagrams of these three mechanisms (versionless references, versioned references, expansion parameters) — it formalizes the assumptions above with sequence diagrams.
+
 ---
 ## End-to-End Workflow Diagram
 
@@ -153,13 +155,15 @@ This came up in the 2026-06-29 standup and is the key architectural issue to res
 - Shows exactly what the user's collection would look like after upgrading
 - **Limitation:** Expansions are expensive. Cannot be computed on the fly. Requires intentional "Create Similar" action and async wait.
 
-**Sunny's proposal (standup):** Start with Flavor A as the comparison view (Req#3–5), using the CL diff filtered to the user's content, without requiring a new expansion. Then Flavor B (Reqs #6, #8) is the optional deeper preview step the user can invoke if they want full fidelity.
+**Superseded — Sunny's original proposal (2026-06-29 standup):** ~~Start with Flavor A as the comparison view (Req#3–5), using the CL diff filtered to the user's content, without requiring a new expansion.~~ **Decided against in the 2026-06-30 deep dive** — Flavor A is UI-only filtering on top of the existing diff; it doesn't change anything in the API, so it provides nothing to CLI or other non-UI consumers. Flavor C was proposed in its place.
 
-**Jonathan's constraint:** Expansions must be treated as expensive. We cannot compute hypothetical expansions on the fly. Any preview that requires a new expansion must be an explicit user action.
+**Current direction (2026-06-30):** Flavor C — an unpersisted, source-scoped expansion — is the new lightweight candidate. It works by evaluating reference queries against a specific source version without writing a full expansion object, which is the same lever as **expansion parameters** (mechanism C in [Reference Definitions vs. Expansion Parameters](#reference-definitions-vs-expansion-parameters--visual-examples) below) — "evaluate as if this source were pinned to vX," just without persisting the result. Flavor C is not yet fully designed (see open bullets above) — needs follow-up before it can be scoped into M44.
 
-### Discussion question
+**Jonathan's constraint:** Expansions must be treated as expensive. We cannot compute hypothetical *persisted* expansions on the fly. Flavor C is being explored specifically because an unpersisted evaluation may sidestep that cost — but this needs validation before we rely on it.
 
-> Is Flavor A sufficient for the MVP, or do we need Flavor B before the user can make a confident decision?
+### Discussion question (updated 2026-06-30)
+
+> Flavor A is ruled out. Is Flavor C (unpersisted, source-scoped expansion) viable and sufficient for MVP, or do we fall back to Flavor B (full persisted "Create Similar" expansion diff) while Flavor C gets designed out?
 
 ---
 
@@ -282,6 +286,8 @@ Joe's MSF + CIEL example from the standup maps directly onto Example 3:
 This confirms the **per-source banner design** (one banner per outdated source, not one banner for the whole collection) is the right mental model, and it clarifies what "Accept Update" actually has to do behind the scenes: it's an expansion-parameter change scoped to one source, not a reference edit.
 
 It also confirms the limit Andy was probing: **there is no per-concept selection inside this mechanism.** If a user wants some CIEL concepts to update and others to stay behind, the only paths are (a) pre-emptively convert the ones they want frozen into explicit-version references (Example 2) before accepting the update, or (b) accept the whole-source update and then manually remove unwanted new content afterward via the References tab. This matches the spec's existing design note that "accept all and rebuild" is the happy path, with granular editing as a separate power-user activity.
+
+**Connection to Flavor C (see Two Flavors of Diff above):** Example 3's "set an expansion parameter per source" is exactly the mechanism Flavor C is trying to exploit, minus persistence — instead of creating a real Expansion #2 record, Flavor C would evaluate "what would this collection look like if CIEL's expansion parameter were bumped to latest" on the fly, without writing it. If that turns out to be cheap enough, it could replace the "Create Similar" step in Step 3 of the main workflow entirely. Worth designing these two pieces together rather than in isolation.
 
 ---
 
