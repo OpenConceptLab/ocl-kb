@@ -8,6 +8,38 @@
 
 ---
 
+## Background: Adding content from a version
+1. Added versionless reference (i.e. without version to the repo) - resolves to expansion's locked (evaluated) source version
+2. Added versioned reference (e.g. x concept from January CIEL) - resolves to reference's explicit version (which may differ from locked version)
+    3. If your collection only contains only these versioned references, then it will always compute to that version, not the expansion's locked version.
+    4. One aspect of collection maintenance might be to transform versioned references to a later CIEL version (currently supported). This is separate from 
+4. 
+
+Edge case:
+* Create new expansion, and have multiple sources with different versions
+* Go through CIEL update workflow to go from January to May CIEL
+* For LOINC repo, there is a later version but we aren't updating it. Keep the same locked version (no update done at all).
+    * Can update this LOINC version later - does not need to be bundled in with the CIEL update workflow
+
+
+1. See what content is updated
+2. Decide what to update
+3. Update to that source version
+
+
+Hidden complexity: Help the user pick the right expansion parameter without getting them into 
+* Consider: Help the user identify if there are versioned references in their collection?
+* 
+
+Full complexity: ?
+
+
+Assumptions:
+* Versioned references are left alone and are handled in the Transform References workflow
+* This workflow only applies to versionless references.
+* Expansion parameters are the primary mechanism that are being leveraged here.
+
+---
 ## End-to-End Workflow Diagram
 
 ```mermaid
@@ -69,7 +101,9 @@ flowchart TD
 ```
 
 ---
+## Simple MVP
 
+---
 ## Potential Reqs Inventory
 
 | #  | Requirement / Capability                                                              | Status                     | Ticket(s) | MVP?       |
@@ -102,6 +136,15 @@ This came up in the 2026-06-29 standup and is the key architectural issue to res
 - **No new expansion is computed** — uses the existing expansion + the CIEL diff
 - Shows: "Of the N concepts that changed in CIEL, X of them are in your collection"
 - **Limitation:** This is an approximation — it doesn't account for reference evaluation logic, cascades, or concepts that might enter/leave via expansion rules
+- **Decision:** Do not pursue this. This is only a UI fix - it doesn't do anything in the API, which limits CLI or other non-UI work.
+
+### Flavor C — Unpersisted Expansion (not authoritative, performant, FHIR-supported)
+- Copy evaluated content from other source versions so that only the in-scope source versions?
+- "Auto-expand but only to a specific source version" - Smarter logic for reference queries to reign in what is being evaluated
+    - Separate from locking, which applies during $ResolveReference
+- Query a set of references to be previewed, which will inform the user on what content is updating(?)
+- 
+
 
 ### Flavor B — Expansion-to-expansion diff (authoritative but expensive)
 
