@@ -299,6 +299,21 @@ A transform that lets a user update the pinned version on a repo-versioned refer
 
 ---
 
+### "Definition Type" Facet — Rename and Option-Set Revisit
+**Origin:** ocl_issues#2502, CIEL check-in 2026-07-10 (Jon, Andy)
+
+Confirmed working as intended for now, not a bug: Cascade references are classified as Intensional under the current Definition Type facet (Intensional/Extensional), and Sunny confirmed this behaves correctly as implemented.
+
+**Background:** This facet was originally labeled "Transform" (backed by the `transform` field). Jon consolidated separate `resource_versioned`/`repo_versioned` params into a single facet and renamed it to "Definition Type" with labels "Extensional / Enumerated" and "Intensional / Rule-based" (#2273), flagging at the time that `transform = extensional/intensional` is semantically inaccurate.
+
+**The nuance surfaced 2026-07-10:** FHIR's definition of "extensional" concerns only the codes themselves, not mappings. Strictly by that definition, a cascade that just pulls in a concept's existing mappings without further processing could arguably be Extensional. OCL currently classifies any cascade as Intensional, since cascade inherently implies expansion/processing — this is the behavior being kept.
+
+**Deferred proposal, not yet scheduled:** Rename "Definition Type" to "Transform Method" and change the option set from Intensional/Extensional to None / Resource Versions / Extensional.
+
+**When to revisit:** When there's bandwidth for the system changes a full reclassification would require, or if the current Intensional-only classification of Cascade causes real user confusion.
+
+---
+
 ## Repository Configuration
 
 ### Extra Attribute Template Configuration
