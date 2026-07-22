@@ -365,9 +365,50 @@ OCL's own default sources for each field type also need to be documented.
 
 OCL V2 lets organizations configure a custom banner image and background for their organization landing page. Andy uses this for the CL organization — `CLterminology.org` redirects directly to the OCL org page, making it CL's only public-facing website. The org page must be visually attractive; he's less concerned about branding within the source content pages themselves.
 
-**Deferred rationale:** No design or code work has been done on org branding in TBv3. Core org page navigation and content functionality takes priority for MVP. Branding can be added after launch.
+**Deferred rationale (as of 2026-05-20):** No design or code work has been done on org branding in TBv3. Core org page navigation and content functionality takes priority for MVP. Branding can be added after launch.
 
-**When to revisit:** Before the V2 → V3 full cutover, since the org page serves as CL's canonical public URL.
+**Design direction update, 2026-07-22 content managers call:** Design work has now started, and the direction is shifting away from a straight port of V2's full banner + planned color/text editing. Designer paulsonder flagged that letting orgs change page colors risks taking users "out of the OCL experience." The group is instead converging on a **GitHub-org-README-style model** — logo + a smaller picture (not a full-width banner) + a flexible custom text/content area beneath the standard OCL header, rather than a freestanding branded landing page. This re-converges with the About+Repos merge direction paulsonder proposed in #1757 (see Organization Views in `tbv3-knowledge-base.md`).
+
+Live feedback from content managers: PIH said logo + banner is "enough" for their needs; no appetite surfaced for deeper customization such as per-org custom tabs (that idea was explicitly deprioritized — high maintenance cost, low demand). Scope boundary reaffirmed: OCL is not meant to be an all-purpose web platform — orgs wanting full separate websites (e.g., PIH) should keep those separate.
+
+Two action items came out of that call:
+1. ~~Inventory/document exactly which org-page customization capabilities are and aren't currently supported (even the team had lost track) — likely owned by Joe/PM.~~ **Done, 2026-07-22** — see inventory below.
+2. Andy volunteered to prototype a GitHub-README-style mockup of CL's org page to test whether it can substitute for a dedicated banner-driven landing page.
+
+**When to revisit:** Before the V2 → V3 full cutover, since the org page serves as CL's canonical public URL. Check for Andy's prototype before assuming the full-banner/color-editing approach is still the working target.
+
+#### V2 Capability Inventory (`oclweb2` + `oclapi2`, researched 2026-07-22)
+
+**Identity & basic info** — `oclweb2/src/components/orgs/OrgForm.jsx`, `oclapi2/core/orgs/models.py`
+- Full name, description, website, company, location — plain text fields.
+- "About Org" (`text` field) — rich text/HTML, edited via WYSIWYG editor (`RTEditor`), rendered on the Overview/About tab.
+- Custom Attributes (`extras`) — arbitrary key/value pairs, shown in a popup on the header. This is the only piece currently documented in `ocl-docs/docs/source/oclapi/apireference/orgs.md`.
+- Logo — image upload (base64) via `POST /orgs/{id}/logo/`, stored through the export/blob service, served as `logo_url`. Shared across orgs, sources, collections, and users via a generic `CommonLogoModel` mixin — not org-specific.
+
+**Banner/header customization** — `OverviewSettings.jsx` UI → `PUT /orgs/{id}/overview/` → `overview` JSONField. This is the "editing colors" capability Andy referenced on the call.
+- Banner height (px).
+- Independent show/hide toggles for logo, controls (download/edit/copy buttons), signatures (created/updated by/on), and pins.
+- Background: image URL, background color, image-overlay toggle — set separately for the expanded Overview-tab banner vs. the shrunk header shown on other tabs.
+- Foreground: text color, title color, description color, description width (%) — also split expanded vs. shrunk.
+- Exposed through a "Manage Overview" form gated only by ordinary edit access — any org editor can use it today, no special/admin flag required.
+
+**Pinning** — `Pin` model, `oclapi2`, `/orgs/{id}/pins/`
+- Pin/unpin sources or collections to the org home page; reorderable (drag-to-reorder, persisted via `PUT .../pins/{id}/`).
+- Matches backlog item #2018 ("Pin repository on org page") noted in `cross-cutting/historical-backlog-synthesis.md` — i.e., already shipped in V2, not just a V3 wishlist item.
+
+**Tabs & multi-config layouts** — `ClientConfig` model (`oclapi2/core/client_configs/models.py`), generic to any resource type (org, source, collection, user)
+- Fully custom tab sets per org: label, icon, color, resource type, page size, layout, sort order, href.
+- Multiple named, saveable configs per org, one markable `is_default`; configs can be `public` (shared with others) or `is_template` (reusable starting point).
+- Backend fully supports this, but the frontend switcher (`ConfigSelect`) only renders when the URL has `?configs=true` — there is no discoverable entry point otherwise. This is exactly the "custom tabs" idea the call deprioritized as a low-value pet feature — it turns out it **already exists and works in V2**, it's just unshipped/hidden in the UI rather than something that would need to be built from scratch.
+- A tab can also be `type: 'text'` (`HomeTabContent.jsx`) rather than a resource list: each field renders as HTML, Markdown, or plain text, sourced from a static config value, an org attribute, **or a live fetch from an arbitrary external URL** (`CustomText.jsx` → `CustomMarkdown`/`CustomMarkup`). This is functionally a working GitHub-README-style content block — org owners could already point a tab at a raw README URL and get README-style rendering — it's just hidden behind the same `?configs=true` gate as the tab switcher above. **This reframes the GitHub-README direction from "build" to "expose what already exists."**
+
+**Not currently supported in V2** (nothing found in either repo)
+- No full-bleed background image behind the entire page — background styling only applies within the header/banner area.
+- No auto-generated "featured/recently updated repos" list — pins are 100% manual (paulsonder's featured-repos proposal from #1757 was never built).
+- No `canonical_url` or `external_id` fields on the Organization model at all (those exist only on sources/collections) — some org-page frontend code checks `org.external_id`, but it's dead code, always undefined for orgs.
+- No branded custom-domain mapping beyond the DNS-level redirect Andy set up manually for `CLterminology.org`.
+
+**Documentation gap:** only `extras` is documented in `ocl-docs/docs/source/oclapi/apireference/orgs.md`; `logo`, `overview` (banner/colors), `pins`, and `client_configs` are all undocumented in the published API reference despite being live, working features.
 
 ---
 

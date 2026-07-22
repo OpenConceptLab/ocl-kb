@@ -758,6 +758,8 @@ Detailed implementation in Round 2 included:
 
 **Outstanding items for org views:** Activity feed (dependent on events framework), number of followers statistic, "Add a member" button (no design yet), and download/share button consolidation.
 
+**Branding re-convergence (2026-07-22):** The deferred org landing-page branding feature (see Organization > Organization Landing Page Branding in `tbv3-deferred-features.md`) is now trending back toward this Round 1 GitHub-inspired About+Repos direction rather than a full banner/color-editing model. Andy is prototyping a GitHub-README-style mockup for CL.
+
 **Global Search for Orgs** (#1864, open) tracks enhancements: mini org avatar in results, org summary (sources/collections/members count), filters/facets, and card view. paulsonder proposed keeping global search results inside Searchlight (as a modal overlay) rather than navigating to a separate page, which jamlung-ri supported for both UX and workflow benefits (e.g., the "add to collection" workflow could use a windowed global searchlight) (#1864).
 
 **Org/User pinned repos sizing** (#1966, closed, Done) fixed a bug where pinned repos were shrinking too much on the page.
