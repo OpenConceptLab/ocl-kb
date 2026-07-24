@@ -879,6 +879,31 @@ When a concept or mapping is fetched in a collection context, the API is called 
 
 ---
 
+### Open Design Question: Removing a Concept Covered by Multiple References
+
+> **Raised by:** [ocl_issues#2644](https://github.com/OpenConceptLab/ocl_issues/issues/2644) (MSF report, comment [2026-07-2x](https://github.com/OpenConceptLab/ocl_issues/issues/2644#issuecomment-5068497102)). **Needs team discussion before oclweb3 builds this out further.**
+
+Neither remove path documented above (Bulk Remove from References Tab, Remove from Collection via Concept/Mapping Detail) addresses what happens when the concept/mapping being removed is brought into the collection by **more than one reference** (e.g. a specific reference *and* a broader cascade/wildcard reference that also resolves to it). Simply deleting one reference in that case doesn't remove the concept from the expansion — the other reference still resolves to it.
+
+**How oclweb2 (legacy, current production) handles this today:** its "Remove Resources by Reference" dialog (`CollectionHomeChildrenList.jsx`) detects the multi-reference case (`shouldMakeExclusion`) and recommends **"Exclude concept(s)/mapping(s) from collection"** instead of a plain delete. Exclude creates a *new, independent* `CollectionReference` row with `include: false` targeting just that concept — it does not modify or link to the reference(s) that pulled the concept in.
+
+**The problem, per the backend model (`oclapi2/core/collections/models.py`):**
+- `CollectionReference.include=False` rows have no foreign-key/grouping relationship to the include reference(s) they were created to counteract (models.py:521-561).
+- Every exclude reference in a collection version is permanently re-applied on **every subsequent** `add_references` call (`Expansion.add_references`, models.py:1367-1373) — it's a standing filter, not a one-time/paired operation.
+- Neither `Collection.delete_references` (models.py:310-320, matches by expression string) nor `Expansion.delete_references` (models.py:1304-1336, matches by ID) has any logic to find and remove an exclude reference associated with the reference being deleted.
+- Net effect: once a concept has been "excluded," that exclude reference is orphaned the moment the original broader/cascade reference is later removed. It keeps suppressing the concept from the expansion indefinitely until a user manually finds and deletes the stray "Exclude concept – &lt;ID&gt;" reference — which is exactly what MSF hit (concepts silently missing from OpenMRS after reference cleanup).
+- Compounding factor: `Concept.cascade()` (`oclapi2/core/concepts/models.py:1405-1424`) traverses **all** mapping types by default, including SAME-AS. A cascade/hierarchy reference can re-pull an "excluded" concept back into the expansion via a SAME-AS-linked sibling concept, independent of the exclude reference — MSF resolved one of their two cases only after deleting a conflicting SAME-AS mapping, not by fixing the exclude reference itself.
+
+**Open questions for the team:**
+1. Should an exclude reference be linked (FK or grouping) to the include reference(s) it was created to counteract, so removing the include reference offers/forces cleanup of its paired exclude reference?
+2. Should exclude references be scoped/paired at all, or is the current "standing filter" behavior intentional — and if so, how should the UI make existing exclude references for a concept impossible to miss when a user is removing/re-adding that concept?
+3. Should cascade traversal (e.g. via SAME-AS mappings) respect exclude references consistently, regardless of which reference path re-introduces the concept?
+4. Does this problem, and its fix, need to be re-litigated for oclweb3's `DeleteReferencesDialog` / `RemoveFromCollectionDialog`, which currently don't implement the multi-reference detection oclweb2 has at all (see above) — should oclweb3 implement the same recommend-exclude behavior, a fixed version of it, or a different mechanism entirely?
+
+See [ocl_issues#2644](https://github.com/OpenConceptLab/ocl_issues/issues/2644) for the full MSF report and reproduction details. A separate, narrower UI bug from the same report (oclweb2's "Remove Resources by Reference" dialog not showing success feedback on the plain-delete path) is tracked/fixed independently and is not part of this design question.
+
+---
+
 ## Linked Source: Resolve to HEAD During Updates
 
 > **Decision (2026-05-13, ADR-007):** HEAD-resolution is allowed for any source — not limited to sources the user owns — provided the source has explicitly enabled it via a repository-level setting (`allow_head_as_linked_source: true`). Source owners control this opt-in; it is off by default.
