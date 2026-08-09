@@ -12,6 +12,7 @@ The Django REST API backend for the OCL platform. Built on Django REST Framework
 - [kb-sections/section-3-open-keep.md](kb-sections/section-3-open-keep.md) — Open issues marked for retention
 - [kb-sections/section-4-close-review.md](kb-sections/section-4-close-review.md) — Issues recommended for closure or review
 - [kb-sections/section-5-appendices.md](kb-sections/section-5-appendices.md) — Issue index & contributor map
+- [api2-recent-decisions.md](api2-recent-decisions.md) — Decisions and open work items added after the March 2026 KB generation
 
 ## Key Themes
 
