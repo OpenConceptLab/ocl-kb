@@ -52,3 +52,7 @@ Each KB was produced by analyzing a thematic bucket of issues. They capture exec
 This KB consolidates material from two sources:
 - **ocl-workspace** — The working repo for the OCL issues cleanup initiative (March 2026)
 - **ocl-kb (direct)** — The TBv3 spec library and roadmap-2026 bucket, developed directly in this repo
+
+## The OCL Digital Public Good
+
+This repository is not part of the [OCL Digital Public Good](https://github.com/OpenConceptLab/.github/blob/main/DIGITAL-PUBLIC-GOOD.md). That page lists the repositories that are.
